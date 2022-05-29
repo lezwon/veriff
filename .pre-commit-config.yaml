@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-docstring-first
+      - id: mixed-line-ending
+        args: [ --fix=lf ]
+
+
+  - repo: https://github.com/omnilib/ufmt
+    rev: v1.3.2
+    hooks:
+      - id: ufmt
+        additional_dependencies:
+          - black == 21.9b0
+          - usort == 0.6.4
+
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.9.2
+    hooks:
+      - id: flake8
+        args: [--config=setup.cfg]
+
+  - repo: https://github.com/PyCQA/pydocstyle
+    rev: 6.1.1
+    hooks:
+      - id: pydocstyle
