@@ -102,7 +102,7 @@ class BirdClassifier:
         for _ in range(5):
             self.bird_model.call(image_tensor)
 
-    async def infer(self, image_urls: List[str]) -> None:
+    async def infer(self, image_urls: List[str]) -> tf.Tensor:
         """
         Infers the given image_urls.
         :param image_urls: List of image urls
@@ -116,14 +116,11 @@ class BirdClassifier:
         image_list = [image for image in image_list if image is not None]
         image_tensor = tf.stack(image_list) / 255
 
-        model_raw_output = self.bird_model.call(image_tensor)
-
-        # TODO: Print results to kubernetes log
-        self.post_process(model_raw_output)
+        return self.bird_model.call(image_tensor)
 
     def post_process(self, model_raw_output: tf.Tensor) -> None:
         """
-        Post process the model output.
+        Postprocess the model output.
         :param model_raw_output:
         :return:
         """
@@ -134,22 +131,28 @@ class BirdClassifier:
             print(f"Run: {image_index}")
 
             print(
-                f'Top match: "{self.bird_labels[im_indices[0]]}"'
-                f" with score: {im_scores[0]}"
+                f'Top match: "{self.bird_labels[im_indices[0]]}" with score: {im_scores[0]}'
             )
             print(
-                f'Second match: "{self.bird_labels[im_indices[1]]}" '
-                f"with score: {im_scores[1]}"
+                f'Second match: "{self.bird_labels[im_indices[1]]}" with score: {im_scores[1]}'
             )
             print(
-                f'Third match: "{self.bird_labels[im_indices[2]]}" '
-                f"with score: {im_scores[2]}"
+                f'Third match: "{self.bird_labels[im_indices[2]]}" with score: {im_scores[2]}'
             )
             print("\n")
+
+    async def run(self, image_urls: List[str]) -> None:
+        """
+        Runs the classifier
+        :param image_urls: List of image urls
+        :return:
+        """
+        model_raw_output = await self.infer(image_urls)
+        self.post_process(model_raw_output)
 
 
 if __name__ == "__main__":
     start_time = time.time()
     classifier = BirdClassifier(model_url, labels_url)
-    asyncio.run(classifier.infer(image_urls))
+    asyncio.run(classifier.run(image_urls))
     print("Time spent: %s" % (time.time() - start_time))
