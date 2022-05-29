@@ -1,12 +1,14 @@
 import asyncio
 import os
 import time
+from typing import List, Optional, cast
 
 import cv2
 import httpx
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
+from tensorflow.python.ops.gen_nn_ops import TopKV2
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Disable Tensorflow logging
 
@@ -27,18 +29,17 @@ class BirdClassifier:
     Classifier class for Birds
     """
 
-    def __init__(self, model_url, labels_url):
+    def __init__(self, model_url: str, labels_url: str):
         """
         Initialize the classifier
         """
-        # TODO: Put in GPU
         self.bird_model = hub.KerasLayer(model_url)
         self.bird_labels = self.load_and_cleanup_labels(labels_url)
         self.client = httpx.AsyncClient()
 
         self.warmup()  # Warm up the model
 
-    def load_and_cleanup_labels(self, labels_url):
+    def load_and_cleanup_labels(self, labels_url: str) -> List[str]:
         """
         Read and parse labels into a list
         :return:
@@ -52,32 +53,35 @@ class BirdClassifier:
             bird_id, bird_name = bird_line.split(",")
             birds[int(bird_id)] = bird_name
 
-        return birds
+        return cast(List[str], birds)
 
-    async def preprocess(self, image_url):
+    async def preprocess(self, image_url: str) -> Optional[np.ndarray]:
         """
         Download and preprocess images
         :param image_url:
         :return:
         """
-        # TODO: Write tests
-        # TODO: handle images that dont exist
 
-        # Loading images
-        image_get_response = await self.client.get(image_url)
-        print(f"Download {image_url}")
-        # image_get_response = urllib.request.urlopen(image_url)
-        image_array = np.asarray(
-            bytearray(await image_get_response.aread()), dtype=np.uint8
-        )
-        # Changing images
-        image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        image = cv2.resize(image, (224, 224))
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        # Generate tensor
-        return tf.convert_to_tensor(image, dtype=tf.float32)
+        try:
+            # Loading images
+            image_get_response = await self.client.get(image_url)
 
-    def _get_top_n_scores(self, model_raw_output, k=3):
+            # image_get_response = urllib.request.urlopen(image_url)
+            image_array = np.asarray(
+                bytearray(await image_get_response.aread()), dtype=np.uint8
+            )
+            # Changing images
+            image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            image = cv2.resize(image, (224, 224))
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # Generate tensor
+            return tf.convert_to_tensor(image, dtype=tf.float32)
+
+        except httpx.HTTPError:
+            print(f"Image {image_url} not found")
+            return None
+
+    def _get_top_n_scores(self, model_raw_output: tf.Tensor, k: int = 3) -> TopKV2:
         """
         Get the scores and indices of the top k scores
         :param model_raw_output:
@@ -98,7 +102,7 @@ class BirdClassifier:
         for _ in range(5):
             self.bird_model.call(image_tensor)
 
-    async def infer(self, image_urls):
+    async def infer(self, image_urls: List[str]) -> None:
         """
         Infers the given image_urls.
         :param image_urls: List of image urls
@@ -108,15 +112,16 @@ class BirdClassifier:
         image_list = await asyncio.gather(
             *[self.preprocess(url) for i, url in enumerate(image_urls)]
         )
+        # Remove empty values
+        image_list = [image for image in image_list if image is not None]
         image_tensor = tf.stack(image_list) / 255
-        # TODO: Put image in GPU
 
         model_raw_output = self.bird_model.call(image_tensor)
 
         # TODO: Print results to kubernetes log
         self.post_process(model_raw_output)
 
-    def post_process(self, model_raw_output):
+    def post_process(self, model_raw_output: tf.Tensor) -> None:
         """
         Post process the model output.
         :param model_raw_output:
