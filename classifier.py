@@ -62,18 +62,20 @@ class BirdClassifier:
         image_list = await asyncio.gather(*[self.infer(url) for i, url in enumerate(image_urls)])
         image_tensor = tf.stack(image_list) / 255
 
-        # image_tensor = tf.expand_dims(image_tensor, 0)
-        model_raw_output = self.bird_model.call(image_tensor).numpy()
-        birds_names_with_results_ordered = self.order_birds_by_result_score(model_raw_output)
-        # Print results to kubernetes log
-        # print('Run: %s' % int(index + 1))
-        bird_name, bird_score = self.get_top_n_result(1, birds_names_with_results_ordered)
-        print('Top match: "%s" with score: %s' % (bird_name, bird_score))
-        bird_name, bird_score = self.get_top_n_result(2, birds_names_with_results_ordered)
-        print('Second match: "%s" with score: %s' % (bird_name, bird_score))
-        bird_name, bird_score = self.get_top_n_result(3, birds_names_with_results_ordered)
-        print('Third match: "%s" with score: %s' % (bird_name, bird_score))
-        print('\n')
+        model_raw_output = self.bird_model.call(image_tensor)
+
+        # TODO: Print results to kubernetes log
+
+        scores, indices = tf.math.top_k(model_raw_output, k=3)
+
+        for image_index, (scores, indices) in enumerate(zip(scores.numpy(), indices.numpy()), start=1):
+            print(f"Run: {image_index}")
+
+            print(f"Top match: {self.bird_labels[indices[0]]} with score: {scores[0]}")
+            print(f"Second match: {self.bird_labels[indices[1]]} with score: {scores[1]}")
+            print(f"Third match: {self.bird_labels[indices[2]]} with score: {scores[2]}")
+            print('\n')
+
 
     async def infer(self, image_url):
         # Loading images
