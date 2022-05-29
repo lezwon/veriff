@@ -76,9 +76,12 @@ class BirdClassifier:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             # Generate tensor
             return tf.convert_to_tensor(image, dtype=tf.float32)
-
+        # TODO: capture cv error, parsing errors
         except httpx.HTTPError:
             print(f"Image {image_url} not found")
+            return None
+        except Exception as e:
+            print(f"Error: {e}")
             return None
 
     def _get_top_n_scores(self, model_raw_output: tf.Tensor, k: int = 3) -> TopKV2:
