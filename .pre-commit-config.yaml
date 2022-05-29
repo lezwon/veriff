@@ -21,9 +21,13 @@ repos:
     rev: 3.9.2
     hooks:
       - id: flake8
-        args: [--config=setup.cfg]
+        args:
+        - --config=setup.cfg
+        - --ignore=E501
 
   - repo: https://github.com/PyCQA/pydocstyle
     rev: 6.1.1
     hooks:
       - id: pydocstyle
+        args:
+        - --ignore=D100,D101,D102,D103,D104,D105,D205,D212
