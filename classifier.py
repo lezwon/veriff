@@ -1,7 +1,7 @@
 import asyncio
 import os
 import time
-from typing import List, Optional, cast
+from typing import List, Optional, cast, Dict, Tuple
 
 import cv2
 import httpx
@@ -36,6 +36,7 @@ class BirdClassifier:
         self.bird_model = hub.KerasLayer(model_url)
         self.bird_labels = self.load_and_cleanup_labels(labels_url)
         self.client = httpx.AsyncClient()
+        self.request_queue = asyncio.Queue()
 
         self.warmup()  # Warm up the model
 
@@ -105,9 +106,44 @@ class BirdClassifier:
         for _ in range(5):
             self.bird_model.call(image_tensor)
 
-    async def infer(self, image_urls: List[str]) -> tf.Tensor:
+    def infer(self, image_tensor: tf.Tensor) -> tf.Tensor:
         """
         Infers the given image_urls.
+        :param image_urls: List of image urls
+        :return:
+        """
+
+        return self.bird_model.call(image_tensor)
+
+    def post_process(
+        self, model_raw_output: tf.Tensor, k: int
+    ) -> List[List[Dict[str, str]]]:
+        """
+        Postprocess the model output.
+        :param model_raw_output:
+        :return:
+        """
+        scores, indices = self._get_top_n_scores(model_raw_output, k)
+        results = []
+
+        for image_index, (im_scores, im_indices) in enumerate(
+            zip(scores.numpy(), indices.numpy()), start=1
+        ):
+            image_results = []
+            for label_index, score in zip(im_indices, im_scores):
+                image_results.append(
+                    {"bird_name": self.bird_labels[label_index], "score": float(score)}
+                )
+
+            results.append(image_results)
+
+        return results
+
+    async def run(
+        self, image_urls: List[str], k=3
+    ) -> Tuple[Dict[str, List], List[str]]:
+        """
+        Runs the classifier
         :param image_urls: List of image urls
         :return:
         """
@@ -116,42 +152,25 @@ class BirdClassifier:
             *[self.preprocess(url) for i, url in enumerate(image_urls)]
         )
         # Remove empty values
-        image_list = [image for image in image_list if image is not None]
-        image_tensor = tf.stack(image_list) / 255
+        filtered_list = [image for image in image_list if image is not None]
+        # Convert to tensor
+        image_tensor = tf.stack(filtered_list) / 255
+        # Run inference
+        model_raw_output = self.infer(image_tensor)
 
-        return self.bird_model.call(image_tensor)
+        successful_urls, failed_urls = [], []
+        # Pick image_urls based on image_list
+        for i, image in enumerate(image_list):
+            if image is not None:
+                successful_urls.append(image_urls[i])
+            else:
+                failed_urls.append(image_urls[i])
 
-    def post_process(self, model_raw_output: tf.Tensor) -> None:
-        """
-        Postprocess the model output.
-        :param model_raw_output:
-        :return:
-        """
-        scores, indices = self._get_top_n_scores(model_raw_output)
-        for image_index, (im_scores, im_indices) in enumerate(
-            zip(scores.numpy(), indices.numpy()), start=1
-        ):
-            print(f"Run: {image_index}")
-
-            print(
-                f'Top match: "{self.bird_labels[im_indices[0]]}" with score: {im_scores[0]}'
-            )
-            print(
-                f'Second match: "{self.bird_labels[im_indices[1]]}" with score: {im_scores[1]}'
-            )
-            print(
-                f'Third match: "{self.bird_labels[im_indices[2]]}" with score: {im_scores[2]}'
-            )
-            print("\n")
-
-    async def run(self, image_urls: List[str]) -> None:
-        """
-        Runs the classifier
-        :param image_urls: List of image urls
-        :return:
-        """
-        model_raw_output = await self.infer(image_urls)
-        self.post_process(model_raw_output)
+        # Postprocess
+        k_top_results = self.post_process(model_raw_output, k)
+        # Return results
+        successful_inference = dict(zip(successful_urls, k_top_results))
+        return successful_inference, failed_urls
 
 
 if __name__ == "__main__":

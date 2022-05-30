@@ -4,3 +4,5 @@ tensorflow_hub==0.11.0
 opencv-python==4.5.1.48
 numpy==1.19.3
 httpx==0.23.0
+fastapi==0.78.0
+uvicorn==0.17.6
