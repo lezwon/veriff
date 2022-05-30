@@ -1,6 +1,7 @@
 import pytest
 import tensorflow as tf
-from classifier import BirdClassifier, model_url, labels_url
+from classifier import BirdClassifier
+from constants import model_url, labels_url
 
 # Set tf seed
 tf.random.set_seed(42)

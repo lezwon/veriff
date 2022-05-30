@@ -1,13 +1,17 @@
+import logging
 import time
 from typing import List, Optional, Dict
 
 import uvicorn
-from classifier import BirdClassifier, model_url, labels_url
+from classifier import BirdClassifier
+from constants import model_url, labels_url
 from fastapi import FastAPI
 from pydantic import BaseModel, HttpUrl
 
 app = FastAPI()
 classifier = BirdClassifier(model_url, labels_url)
+
+logger = logging.getLogger(__name__)
 
 
 class ImageInput(BaseModel):
@@ -20,6 +24,10 @@ class ImageInput(BaseModel):
 @app.post("/")
 async def index(images: ImageInput) -> Dict:
     """Takes image url as input and returns top 3 results as output"""
+    logger.info("Request received")
+    logger.info(f"Images: {images.images}")
+    logger.info(f"K: {images.k}")
+
     start_time = time.time()
 
     successful_results, failed_results, errors = [], [], []
