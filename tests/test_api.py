@@ -88,6 +88,9 @@ def grayscale_image():
 )
 @mock.patch("api.classifier.client.get", new_callable=AsyncMock)
 def test_successful_inference(mock_async_client, image_bytes, image_urls, k):
+    """
+    Test that the model output is similar to the expected output.
+    """
     response = AsyncMock(name="Response")
     response.aread.return_value = image_bytes
     mock_async_client.return_value = response
@@ -130,6 +133,9 @@ def test_successful_inference(mock_async_client, image_bytes, image_urls, k):
     ],
 )
 def test_input_validations(image_urls, k, expected_error):
+    """
+    Test that the input image urls and k are validated.
+    """
     data = {"images": image_urls, "k": k}
 
     response = client.post("/", json=data)
@@ -150,6 +156,10 @@ def test_input_validations(image_urls, k, expected_error):
 )
 @mock.patch("api.classifier.client.get", new_callable=AsyncMock)
 def test_invalid_images(mock_async_client, image_bytes, image_url, image):
+    """
+    Test images which are not valid.
+    """
+
     def side_effect_func(url):
         response = AsyncMock(name="Response")
         response.aread.return_value = image() if url == image_url else image_bytes
@@ -174,7 +184,9 @@ def test_invalid_images(mock_async_client, image_bytes, image_url, image):
 
 @mock.patch("api.classifier.client.get", new_callable=AsyncMock)
 def test_grayscale_images(mock_async_client, grayscale_image):
-
+    """
+    Test grayscale images.
+    """
     response = AsyncMock(name="Response")
     response.aread.return_value = grayscale_image
 
