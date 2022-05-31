@@ -1,10 +1,10 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-import constants
 import pytest
 import tensorflow as tf
-from api import app
+from app import constants
+from app.api import app
 from fastapi.testclient import TestClient
 
 client = TestClient(app)
