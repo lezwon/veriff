@@ -135,6 +135,24 @@ class BirdClassifier:
 
         return results
 
+    def filter_urls(
+        self, image_list: List[Optional[tf.Tensor]], image_urls: List[str]
+    ) -> Tuple[List, List]:
+        """
+        Filter out the failed and successful urls
+        :param image_list: List of images
+        :param image_urls: List of image urls
+        :return: Tuple of failed and successful urls
+        """
+        successful_urls, failed_urls = [], []
+        # Pick image_urls based on image_list
+        for i, image in enumerate(image_list):
+            if image is not None:
+                successful_urls.append(image_urls[i])
+            else:
+                failed_urls.append(image_urls[i])
+        return failed_urls, successful_urls
+
     async def run(
         self, image_urls: List[str], k=3
     ) -> Tuple[Dict[str, List], List[str]]:
@@ -162,24 +180,6 @@ class BirdClassifier:
         # Return results
         successful_inference = dict(zip(successful_urls, k_top_results))
         return successful_inference, failed_urls
-
-    def filter_urls(
-        self, image_list: List[Optional[tf.Tensor]], image_urls: List[str]
-    ) -> Tuple[List, List]:
-        """
-        Filter out the failed and successful urls
-        :param image_list: List of images
-        :param image_urls: List of image urls
-        :return: Tuple of failed and successful urls
-        """
-        successful_urls, failed_urls = [], []
-        # Pick image_urls based on image_list
-        for i, image in enumerate(image_list):
-            if image is not None:
-                successful_urls.append(image_urls[i])
-            else:
-                failed_urls.append(image_urls[i])
-        return failed_urls, successful_urls
 
 
 if __name__ == "__main__":
