@@ -60,8 +60,6 @@ class BirdClassifier:
         try:
             # Loading images
             image_get_response = await self.client.get(image_url)
-
-            # image_get_response = urllib.request.urlopen(image_url)
             image_array = np.asarray(
                 bytearray(await image_get_response.aread()), dtype=np.uint8
             )
