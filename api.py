@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, cast
 
 import constants
 import uvicorn
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class ImageInput(BaseModel):
     """ " Input class for image urls"""
 
-    images: List[HttpUrl] = None
+    images: List[HttpUrl] = []
     k: Optional[int] = 3
 
 
@@ -31,7 +31,9 @@ async def index(images: ImageInput) -> Dict:
 
     start_time = time.time()
 
-    successful_results, failed_results, errors = [], [], []
+    successful_results: Dict[str, List] = {}
+    failed_results: List = []
+    errors: List = []
 
     if not images.images:
         errors.append("No images provided")
@@ -41,7 +43,7 @@ async def index(images: ImageInput) -> Dict:
         )
     else:
         successful_results, failed_results = await classifier.run(
-            images.images, images.k
+            cast(List[str], images.images), images.k
         )
 
     return {

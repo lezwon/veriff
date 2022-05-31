@@ -31,7 +31,6 @@ class BirdClassifier:
         logger.info("Loading labels")
         self.bird_labels = self.load_and_cleanup_labels(labels_url)
         self.client = httpx.AsyncClient()
-        self.request_queue = asyncio.Queue()
 
         self.warmup()  # Warm up the model
 
