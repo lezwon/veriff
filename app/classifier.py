@@ -9,8 +9,9 @@ import httpx
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
-from constants import model_url, labels_url
 from tensorflow.python.ops.gen_nn_ops import TopKV2
+
+from app.constants import model_url, labels_url
 
 logger = logging.getLogger(__name__)
 

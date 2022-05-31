@@ -2,15 +2,15 @@ import logging
 import time
 from typing import List, Optional, Dict, cast
 
-import constants
 import uvicorn
-from classifier import BirdClassifier
-from constants import model_url, labels_url
 from fastapi import FastAPI
 from pydantic import BaseModel, HttpUrl
 
+from app import constants
+from app.classifier import BirdClassifier
+
 app = FastAPI()
-classifier = BirdClassifier(model_url, labels_url)
+classifier = BirdClassifier(constants.model_url, constants.labels_url)
 
 logger = logging.getLogger(__name__)
 
