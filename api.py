@@ -2,6 +2,7 @@ import logging
 import time
 from typing import List, Optional, Dict
 
+import constants
 import uvicorn
 from classifier import BirdClassifier
 from constants import model_url, labels_url
@@ -34,8 +35,10 @@ async def index(images: ImageInput) -> Dict:
 
     if not images.images:
         errors.append("No images provided")
-    elif len(images.images) > 5:
-        errors.append("Too many images provided. Max 5 images allowed")
+    elif len(images.images) > constants.max_images:
+        errors.append(
+            f"Too many images provided. Max {constants.max_images} images allowed"
+        )
     else:
         successful_results, failed_results = await classifier.run(
             images.images, images.k

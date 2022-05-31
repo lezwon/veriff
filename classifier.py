@@ -154,9 +154,8 @@ class BirdClassifier:
         image_tensor = tf.stack(filtered_list) / 255
         # Run inference
         model_raw_output = self.infer(image_tensor)
-
         failed_urls, successful_urls = self.filter_urls(
-            cast(image_list, List[Optional[tf.Tensor]]), image_urls
+            cast(List[Optional[tf.Tensor]], image_list), image_urls
         )
 
         # Postprocess
