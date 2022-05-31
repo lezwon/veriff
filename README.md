@@ -1,56 +1,76 @@
-# Test Task
+# Veriff Assignment
 
-Many photographers have been taking images of birds and wondering what kind of bird it actually is.
+## How to Setup
 
-A bunch of data scientists have been working on a model to help them out.
+1. Create venv or conda environment with python3.7 `conda create -n veriff`
+2. Activate environment and install requirements. `pip install -r requirements.txt`
+3. Run `python main.py`
+4. The server will be started on port `8000`.
 
-While the model\* is performing well a lot of corners were cut to get this model to production\** and the service could certainly use some love from a software engineer.
+## Dev/Tests Setup
+1. Follow the steps above to setup the environment
+2. Install dev requirements with `pip install -r requirements.dev.txt`
+3. Setup pre-commit hooks with `pre-commit install`
+4. To run tests, call `pytest .`
 
-Your task is to:
-* Improve service architecture
-* Improve service performance
-* Improve service maintainability, extensibility and testability
+## Docker Setup
+1. Build the docker image with `docker build -t veriff .`
+2. Run the docker image with `docker run -d -p 8000:8000 --name server  veriff`
+3. Server will be started on port `80`.
 
-You can change all parts of the code as you see fit, however:
-* You are not expected to work on ML model performance
-* Model and data have to be fetched online (instead of downloading it to your local machine)
+## Inference API
+1. You can call the inference API at `/` with a `POST` request.
+2. The request body is `json`
+3. The response body is `json` and contains the fields:
+    - `successful_results`: `Dict[str, List]` Dictionary of successful predictions
+    - `failed_results`: `List` Urls of images which failed to be processed
+    - `time_taken`: `float` Time taken to process the request
+    - `errors`: `List` List of all validation errors
 
-By the end of this task we would like to see, what is a good looking code in your opinion and how much can you optimize latency.
+```shell
+curl --location --request POST 'http://127.0.0.1:8000' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "images":[
+        "https://upload.wikimedia.org/wikipedia/commons/c/c8/Phalacrocorax_varius_-Waikawa%2C_Marlborough%2C_New_Zealand-8.jpg",
+        "https://quiz.natureid.no/bird/db_media/eBook/679edc606d9a363f775dabf0497d31de8c3d7060.jpg"
+    ],
+    "k": 4
+}'
+```
 
-Feel free to play around with the code as much as you like, but in the end we want to see:
-* Your vision of nice code
-* Code running time including images and model downloading and model inference
-* Top 3 results from the model's output per image
-* Proper logging for essential and debug info if necessary
-* Analyse the bottlenecks in your implementation, and report options for improving upon them
-* Finished work has to be pushed to github and shared with @rivol, @veriff-yauheni-aliakseyeu, and @khadrawy
+Sample Response:
+```json
+{
+    "successful_results": {
+        "https://upload.wikimedia.org/wikipedia/commons/c/c8/Phalacrocorax_varius_-Waikawa%2C_Marlborough%2C_New_Zealand-8.jpg": [
+            {
+                "bird_name": "Phalacrocorax varius varius",
+                "score": 0.8430764079093933
+            },
+            {
+                "bird_name": "Phalacrocorax varius",
+                "score": 0.11654692888259888
+            }
+        ],
+        "https://quiz.natureid.no/bird/db_media/eBook/679edc606d9a363f775dabf0497d31de8c3d7060.jpg": [
+            {
+                "bird_name": "Galerida cristata",
+                "score": 0.8428874611854553
+            },
+            {
+                "bird_name": "Alauda arvensis",
+                "score": 0.08378683775663376
+            }
+        ]
+    },
+    "failed_results": [],
+    "time_taken": 1.758669137954712,
+    "errors": []
+}
+```
 
-Bonus
-* Add CLI and/or web API
-    * CLI - I can specify image urls when running the script on commandline, e.g `python classifier.py <url1> <url2>`
-    * Web API: HTTP API with an endpoint that accepts one or multiple urls and returns the result. You can use any framework of your choice - FastAPI, Flask, or something else
-* Unit tests with Mocked images and model data (possible to run without internet)
-* Implement your solution using Docker and Kubernetes for the infrastructure layer. The configuration should scale out: adding machines should reduce latency
-
-The task doesn’t have a fixed time constraint, but we certainly don’t expect you to spend more than 8h.
-
-
-# Local setup
-1) Install Python 3
-2) Install requirements `pip install -r requirements.txt`
-3) Run the code `python classifier.py`
-
-gl;hf
-
-\* The model:
-The sample model is taken from Tensorflow Hub:
-https://tfhub.dev/google/aiy/vision/classifier/birds_V1/1
-
-The labels for model outputs can be found here:
-https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_birds_V1_labelmap.csv
-
-The model has been verified to run with TensorFlow 2.
-
-\** Production: The code was deployed as a python service using Docker with Kubernetes for the infrastructure layer.
-
-In case of questions feel free to contact Rivo Laks at rivo.laks@veriff.net
+Current Bottlenecks:
+1. The current model inference is sequential. Using something like TFServing would provide dynamic batching.
+2. Would use a load Balancer to handle multiple requests.
+3. Move error messages to a yaml file for internationalization.
