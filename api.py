@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class ImageInput(BaseModel):
-    """ " Input class for image urls"""
+    """Input class for image urls"""
 
     images: List[HttpUrl] = []
     k: Optional[int] = 3
@@ -41,6 +41,10 @@ async def index(images: ImageInput) -> Dict:
         errors.append(
             f"Too many images provided. Max {constants.max_images} images allowed"
         )
+    elif images.k > constants.max_k:
+        errors.append(f"Max allowed value of K is {constants.max_k}")
+    elif images.k < constants.min_k:
+        errors.append(f"Min allowed value of K is {constants.min_k}")
     else:
         successful_results, failed_results = await classifier.run(
             cast(List[str], images.images), images.k
