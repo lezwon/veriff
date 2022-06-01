@@ -23,4 +23,5 @@ jobs:
           if [ -f requirements.dev.txt ]; then pip install -r requirements.dev.txt; fi
       - name: Run test suite
         run: |
-          pipenv run test -v
+          pip install pytest-cov
+          pytest --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
