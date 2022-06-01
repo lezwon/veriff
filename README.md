@@ -14,9 +14,13 @@
 4. To run tests, call `pytest .`
 
 ## Docker Setup
-1. Build the docker image with `docker build -t veriff .`
-2. Run the docker image with `docker run -d -p 8000:8000 --name server  veriff`
-3. Server will be started on port `80`.
+1. Build the docker image
+    - CPU: `docker build -t veriff .`
+    - GPU: `docker build -t veriff -f Dockerfile.gpu .`
+2. Run the docker image
+    - CPU: `docker run -d -p 8000:80 --name server  veriff`
+    - GPU: `docker run -d -p 8000:80 --name server --gpus all veriff`
+3. Server will be available on port `8000`.
 
 ## Inference API
 1. You can call the inference API at `/` with a `POST` request.
