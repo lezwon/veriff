@@ -4,10 +4,10 @@ from unittest.mock import MagicMock
 import pytest
 import tensorflow as tf
 from app import constants
-from app.api import app
+from app.api import server
 from fastapi.testclient import TestClient
 
-client = TestClient(app)
+client = TestClient(server)
 
 
 class AsyncMock(MagicMock):  # Not needed if using Python 3.8
