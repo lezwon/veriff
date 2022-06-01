@@ -32,5 +32,5 @@ def test_model_output_is_similar(images, expected_scores, expected_labels):
 
     # check scores with allclose
     assert tf.experimental.numpy.allclose(
-        scores, expected_scores, rtol=1e-03, atol=0, equal_nan=False
+        scores, expected_scores, rtol=1e-03, atol=5e-03, equal_nan=False
     ), "Scores do not match"
