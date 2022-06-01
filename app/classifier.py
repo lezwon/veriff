@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 import time
 from typing import List, Optional, cast, Dict, Tuple
@@ -12,8 +11,9 @@ import tensorflow_hub as hub
 from tensorflow.python.ops.gen_nn_ops import TopKV2
 
 from app.constants import model_url, labels_url
+from app.logger import Logger
 
-logger = logging.getLogger(__name__)
+logger = Logger.getLogger(__name__, True)
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Disable Tensorflow logging
 

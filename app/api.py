@@ -1,4 +1,3 @@
-import logging
 import time
 from typing import List, Optional, Dict, cast
 
@@ -8,11 +7,13 @@ from pydantic import BaseModel, HttpUrl
 
 from app import constants
 from app.classifier import BirdClassifier
+from app.logger import Logger
 
-app = FastAPI()
+server = FastAPI()
 classifier = BirdClassifier(constants.model_url, constants.labels_url)
 
-logger = logging.getLogger(__name__)
+
+logger = Logger.getLogger(__name__, True)
 
 
 class ImageInput(BaseModel):
@@ -22,12 +23,12 @@ class ImageInput(BaseModel):
     k: Optional[int] = 3
 
 
-@app.post("/")
-async def index(images: ImageInput) -> Dict:
+@server.post("/")
+async def index(input_: ImageInput) -> Dict:
     """Takes image url as input and returns top 3 results as output"""
     logger.info("Request received")
-    logger.info(f"Images: {images.images}")
-    logger.info(f"K: {images.k}")
+    logger.info(f"Number of Images: {len(input_.images)}")
+    logger.info(f"K: {input_.k}")
 
     start_time = time.time()
 
@@ -35,19 +36,19 @@ async def index(images: ImageInput) -> Dict:
     failed_results: List = []
     errors: List = []
 
-    if not images.images:
+    if not input_.images:
         errors.append("No images provided")
-    elif len(images.images) > constants.max_images:
+    elif len(input_.images) > constants.max_images:
         errors.append(
             f"Too many images provided. Max {constants.max_images} images allowed"
         )
-    elif images.k > constants.max_k:
+    elif input_.k > constants.max_k:
         errors.append(f"Max allowed value of K is {constants.max_k}")
-    elif images.k < constants.min_k:
+    elif input_.k < constants.min_k:
         errors.append(f"Min allowed value of K is {constants.min_k}")
     else:
         successful_results, failed_results = await classifier.run(
-            cast(List[str], images.images), images.k
+            cast(List[str], input_.images), input_.k
         )
 
     return {
@@ -59,4 +60,4 @@ async def index(images: ImageInput) -> Dict:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(server, host="0.0.0.0", port=8000)
