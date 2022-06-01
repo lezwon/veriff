@@ -4,10 +4,10 @@
 
 1. Create venv or conda environment with python3.7 `conda create -n veriff`
 2. Activate environment and install requirements. `pip install -r requirements.txt`
-3. Run `python main.py`
+3. Run `uvicorn main:app --port 8000`
 4. The server will be started on port `8000`.
 
-## Dev/Tests Setup
+## Dev / Tests Setup
 1. Follow the steps above to setup the environment
 2. Install dev requirements with `pip install -r requirements.dev.txt`
 3. Setup pre-commit hooks with `pre-commit install`
@@ -70,7 +70,12 @@ Sample Response:
 }
 ```
 
-Current Bottlenecks:
-1. The current model inference is sequential. Using something like TFServing would provide dynamic batching.
-2. Would use a load Balancer to handle multiple requests.
-3. Move error messages to a yaml file for internationalization.
+### Current Bottlenecks and Future Improvements:
+1. The current model inference is sequential. I would move the model inference to TFServing to utilize dynamic batching.
+2. Using TFServing would also allow me to version the model.
+3. I would use a load balancer to handle multiple requests.
+4. Move error messages to a yaml file for internationalization.
+5. Build docker image for GPU support.
+6. Benchmark and optimize performance using NSights by Nvidia.
+7. Handling large number of images by breaking them down into small batches
+8. Use Kubernetes for deploying at scale (No experience working with it yet)
