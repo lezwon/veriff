@@ -1,6 +1,8 @@
+import abc
 import asyncio
 import os
 import time
+from abc import abstractmethod
 from typing import List, Optional, cast, Dict, Tuple
 
 import cv2
@@ -18,38 +20,106 @@ logger = Logger.getLogger(__name__, True)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Disable Tensorflow logging
 
 
-class BirdClassifier:
+class Classifier(abc.ABC):
+    def __init__(
+        self,
+        model_url: str,
+        labels_url: str,
+        input_shape: Tuple[int, int, int] = (224, 224, 3),
+        concurrency: int = 5,
+    ) -> None:
+        self.model = self.load_model(model_url)
+        self.labels = self.load_labels(labels_url)
+        self.input_shape = input_shape
+        self.client = httpx.AsyncClient(timeout=10.0)
+        self.concurrency = concurrency
+        self.semaphore = None
+
+        self.warmup()  # Warm up the model
+
+    def load_model(self, model_url: str) -> hub.KerasLayer:
+        logger.info("Loading model")
+        return hub.KerasLayer(model_url)
+
+    @abstractmethod
+    def load_labels(self, labels_url: str) -> List[str]:
+        raise NotImplementedError
+
+    def warmup(self):
+        """
+        Warm Up the model with some sample tensors.
+        :return: None
+        """
+        logger.info("Warming up model")
+        # Create a random float tensor of size (4, 224, 244)
+        image_tensor = tf.random.uniform((4,) + self.input_shape)
+        # Call the model on the tensor in a loop 10 times
+        for _ in range(10):
+            self.model.call(image_tensor)
+
+    def download(self, url: str) -> bytes:
+        """
+        Download a file from a URL.
+        :param url: URL to download from
+        :return: Bytes of the file
+        """
+        logger.info(f"Downloading {url}")
+        response = httpx.get(labels_url)
+        return response.read()
+
+    async def download_async(self, url: str) -> bytes:
+        """
+        Download a file from a URL.
+        :param url: URL to download from
+        :return: Bytes of the file
+        """
+        async with self.semaphore:
+            logger.info(f"Downloading {url}")
+            response = await self.client.get(url)
+
+        return await response.aread()
+
+    def predict(self, image_tensor: tf.Tensor) -> tf.Tensor:
+        """
+        Infers the given tensor.
+        :param image_urls: List of image urls
+        :return: List of predictions
+        """
+        logger.info("Inferring Images")
+        return self.model.call(image_tensor)
+
+    def initialize_semaphore(self):
+        return asyncio.Semaphore(self.concurrency)
+
+
+class BirdClassifier(Classifier):
     """
     Classifier class for Birds
     """
 
-    def __init__(self, model_url: str, labels_url: str):
+    def __init__(
+        self,
+        model_url: str,
+        labels_url: str,
+        input_shape: Tuple[int, int, int] = (224, 224, 3),
+        concurrency: int = 5,
+    ):
         """
         Initialize the classifier
         """
-        logger.info("Loading model")
-        self.bird_model = hub.KerasLayer(model_url)
-        logger.info("Loading labels")
-        self.bird_labels = self.load_and_cleanup_labels(labels_url)
-        self.client = httpx.AsyncClient()
+        super().__init__(model_url, labels_url, input_shape, concurrency)
 
-        self.warmup()  # Warm up the model
-
-    def load_and_cleanup_labels(self, labels_url: str) -> List[str]:
+    def load_labels(self, labels_url: str) -> List[str]:
         """
         Read and parse labels into a list
         :return:
         """
-        bird_labels_raw = httpx.get(labels_url)
-        bird_labels_lines = bird_labels_raw.read().decode().strip().split("\n")
+        logger.info("Loading labels")
+        bird_labels_lines = self.download(labels_url).decode().strip().split("\n")
         bird_labels_lines.pop(0)  # remove header (id, name)
-        birds = [None] * len(bird_labels_lines)
-
-        for bird_line in bird_labels_lines:
-            bird_id, bird_name = bird_line.split(",")
-            birds[int(bird_id)] = bird_name
-
-        return cast(List[str], birds)
+        mapped_list = map(lambda bird_line: bird_line.split(","), bird_labels_lines)
+        labels = sorted(mapped_list, key=lambda bird_line: bird_line[0])
+        return list(map(lambda bird_line: bird_line[1], labels))
 
     async def preprocess(self, image_url: str) -> Optional[np.ndarray]:
         """
@@ -60,9 +130,8 @@ class BirdClassifier:
 
         try:
             # Loading images
-            image_get_response = await self.client.get(image_url)
             image_array = np.asarray(
-                bytearray(await image_get_response.aread()), dtype=np.uint8
+                bytearray(await self.download_async(image_url)), dtype=np.uint8
             )
             # Changing images
             image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
@@ -72,11 +141,11 @@ class BirdClassifier:
             return tf.convert_to_tensor(image, dtype=tf.float32)
         except httpx.HTTPError as e:
             logger.error(f"Failed to download image {image_url}")
-            logger.error(e)
+            logger.error(type(e))
             return None
         except Exception as e:
             logger.error(f"Failed to process image {image_url}")
-            logger.error(e)
+            logger.error(type(e))
             return None
 
     def _get_top_n_scores(self, model_raw_output: tf.Tensor, k: int = 3) -> TopKV2:
@@ -87,28 +156,6 @@ class BirdClassifier:
         :return: TopKV2
         """
         return tf.math.top_k(model_raw_output, k=k)
-
-    def warmup(self):
-        """
-        Warm Up the model with some sample tensors.
-        :return: None
-        """
-
-        logger.info("Warming up model")
-        # Create a random float tensor of size (4, 224, 244)
-        image_tensor = tf.random.uniform((4, 224, 224, 3))
-        # Call the model on the tensor in a loop 5 times
-        for _ in range(5):
-            self.bird_model.call(image_tensor)
-
-    def infer(self, image_tensor: tf.Tensor) -> tf.Tensor:
-        """
-        Infers the given tensor.
-        :param image_urls: List of image urls
-        :return: List of predictions
-        """
-        logger.info("Inferring Images")
-        return self.bird_model.call(image_tensor)
 
     def post_process(
         self, model_raw_output: tf.Tensor, k: int
@@ -127,7 +174,7 @@ class BirdClassifier:
             image_results = []
             for label_index, score in zip(im_indices, im_scores):
                 image_results.append(
-                    {"bird_name": self.bird_labels[label_index], "score": float(score)}
+                    {"bird_name": self.labels[label_index], "score": float(score)}
                 )
 
             results.append(image_results)
@@ -160,6 +207,7 @@ class BirdClassifier:
         :param image_urls: List of image urls
         :return: List of predictions
         """
+        self.semaphore = self.initialize_semaphore()
 
         image_list = await asyncio.gather(
             *[self.preprocess(url) for i, url in enumerate(image_urls)]
@@ -169,7 +217,7 @@ class BirdClassifier:
         # Convert to tensor
         image_tensor = tf.stack(filtered_list) / 255
         # Run inference
-        model_raw_output = self.infer(image_tensor)
+        model_raw_output = self.predict(image_tensor)
         failed_urls, successful_urls = self.filter_urls(
             cast(List[Optional[tf.Tensor]], image_list), image_urls
         )
