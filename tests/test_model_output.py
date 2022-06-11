@@ -1,6 +1,6 @@
 import pytest
 import tensorflow as tf
-from app.classifier import BirdClassifier
+from app.bird_classifier import BirdClassifier
 from app.constants import model_url, labels_url
 
 # Set tf seed
@@ -26,7 +26,7 @@ def test_model_output_is_similar(images, expected_scores, expected_labels):
     :return:
     """
     classifier = BirdClassifier(model_url, labels_url)
-    output = classifier.bird_model.call(images)
+    output = classifier.model.call(images)
     scores, labels = classifier._get_top_n_scores(output, k=1)
     assert tf.reduce_all(tf.math.equal(labels, expected_labels)), "Labels are not equal"
 

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, HttpUrl
 
 from app import constants
-from app.classifier import BirdClassifier
+from app.bird_classifier import BirdClassifier
 from app.logger import Logger
 
 server = FastAPI()
