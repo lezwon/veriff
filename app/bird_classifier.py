@@ -9,7 +9,7 @@ import tensorflow as tf
 from tensorflow.python.ops.gen_nn_ops import TopKV2
 
 from app.classifier import Classifier, logger
-from app.constants import model_url, labels_url
+from app.constants import MODEL_URL, LABELS_URL
 
 
 class BirdClassifier(Classifier):
@@ -44,7 +44,7 @@ class BirdClassifier(Classifier):
     async def preprocess(self, image_url: str) -> Optional[np.ndarray]:
         """
         Download and preprocess images
-        :param image_url:
+        :param image_url: Image url
         :return:
         """
 
@@ -68,7 +68,8 @@ class BirdClassifier(Classifier):
             logger.error(type(e))
             return None
 
-    def _get_top_n_scores(self, model_raw_output: tf.Tensor, k: int = 3) -> TopKV2:
+    @staticmethod
+    def _get_top_n_scores(model_raw_output: tf.Tensor, k: int = 3) -> TopKV2:
         """
         Get the scores and indices of the top k scores
         :param model_raw_output: tf.Tensor of shape (b, num_classes)
@@ -81,8 +82,9 @@ class BirdClassifier(Classifier):
         self, model_raw_output: tf.Tensor, k: int
     ) -> List[List[Dict[str, str]]]:
         """
-        Postprocess the model output.
+        Postprocess the model output
         :param model_raw_output: tf.Tensor of shape (b, num_classes)
+        :param k: Number of top scores to return
         :return: List of predictions
         """
         scores, indices = self._get_top_n_scores(model_raw_output, k)
@@ -101,8 +103,9 @@ class BirdClassifier(Classifier):
 
         return results
 
+    @staticmethod
     def filter_urls(
-        self, image_list: List[Optional[tf.Tensor]], image_urls: List[str]
+        image_list: List[Optional[tf.Tensor]], image_urls: List[str]
     ) -> Tuple[List, List]:
         """
         Filter out the failed and successful urls
@@ -125,6 +128,7 @@ class BirdClassifier(Classifier):
         """
         Runs the classifier
         :param image_urls: List of image urls
+        :param k: Number of top scores to return
         :return: List of predictions
         """
         self.semaphore = self.initialize_semaphore()
@@ -149,7 +153,7 @@ class BirdClassifier(Classifier):
         return successful_inference, failed_urls
 
 
-image_urls = [
+IMAGE_URLS = [
     "https://upload.wikimedia.org/wikipedia/commons/c/c8/Phalacrocorax_varius_-Waikawa%2C_Marlborough%2C_New_Zealand-8.jpg",
     "https://quiz.natureid.no/bird/db_media/eBook/679edc606d9a363f775dabf0497d31de8c3d7060.jpg",
     "https://upload.wikimedia.org/wikipedia/commons/8/81/Eumomota_superciliosa.jpg",
@@ -157,4 +161,4 @@ image_urls = [
     "https://cdn.britannica.com/77/189277-004-0A3BC3D4.jpg",
 ]
 start_time = time.time()
-classifier = BirdClassifier(model_url, labels_url)
+classifier = BirdClassifier(MODEL_URL, LABELS_URL)

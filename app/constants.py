@@ -1,5 +1,5 @@
-model_url = "https://tfhub.dev/google/aiy/vision/classifier/birds_V1/1"
-labels_url = "https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_birds_V1_labelmap.csv"
-max_images = 10
-max_k = 10
-min_k = 0
+MODEL_URL = "https://tfhub.dev/google/aiy/vision/classifier/birds_V1/1"
+LABELS_URL = "https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_birds_V1_labelmap.csv"
+MAX_IMAGES = 10
+MAX_K = 10
+MIN_K = 0
