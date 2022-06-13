@@ -1,7 +1,6 @@
 import time
 from typing import List, Optional, Dict, cast
 
-import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel, HttpUrl
 
@@ -10,10 +9,9 @@ from app.bird_classifier import BirdClassifier
 from app.logger import Logger
 
 server = FastAPI()
-classifier = BirdClassifier(constants.MODEL_URL, constants.LABELS_URL)
-
-
 logger = Logger.getLogger(__name__, True)
+
+classifier = None
 
 
 class ImageInput(BaseModel):
@@ -21,6 +19,16 @@ class ImageInput(BaseModel):
 
     images: List[HttpUrl] = []
     k: Optional[int] = 3
+
+
+@server.on_event("startup")
+async def startup_event():
+    global classifier
+    classifier = BirdClassifier(
+        constants.MODEL_URL,
+        constants.LABELS_URL,
+        concurrency_limit=constants.CONCURRENCY_LIMIT,
+    )
 
 
 @server.post("/")
@@ -57,7 +65,3 @@ async def index(input_: ImageInput) -> Dict:
         "time_taken": time.time() - start_time,
         "errors": errors,
     }
-
-
-if __name__ == "__main__":
-    uvicorn.run(server, host="0.0.0.0", port=8000)

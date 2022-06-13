@@ -2,7 +2,7 @@ import abc
 import asyncio
 import os
 from abc import abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import httpx
 import tensorflow as tf
@@ -22,7 +22,7 @@ class Classifier(abc.ABC):
         model_url: str,
         labels_url: str,
         input_shape: Tuple[int, int, int] = (224, 224, 3),
-        concurrency: int = 5,
+        concurrency_limit: Optional[int] = 5,
         connect_timeout: int = 10,
     ) -> None:
         """
@@ -30,7 +30,7 @@ class Classifier(abc.ABC):
         :param model_url: TFHub URL to the model
         :param labels_url: URL to the labels file
         :param input_shape: Shape of the input tensor
-        :param concurrency: Number of concurrent downloads allowed. Defaults to 5
+        :param concurrency_limit: Semaphore to limit concurrency
         :param connect_timeout: Timeout for the HTTP connection. Defaults to 10
         """
 
@@ -38,8 +38,7 @@ class Classifier(abc.ABC):
         self.labels = self.load_labels(labels_url)
         self.input_shape = input_shape
         self.client = httpx.AsyncClient(timeout=connect_timeout)
-        self.concurrency = concurrency
-        self.semaphore = None
+        self.concurrency_limit = asyncio.Semaphore(concurrency_limit)
 
         self.warmup()  # Warm up the model
 
@@ -86,7 +85,7 @@ class Classifier(abc.ABC):
         :param url: URL to download from
         :return: Bytes of the file
         """
-        async with self.semaphore:
+        async with self.concurrency_limit:
             logger.info(f"Downloading {url}")
             response = await self.client.get(url)
 
@@ -100,6 +99,3 @@ class Classifier(abc.ABC):
         """
         logger.info("Inferring Images")
         return self.model.call(image_tensor)
-
-    def initialize_semaphore(self):
-        return asyncio.Semaphore(self.concurrency)

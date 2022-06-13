@@ -22,12 +22,12 @@ class BirdClassifier(Classifier):
         model_url: str,
         labels_url: str,
         input_shape: Tuple[int, int, int] = (224, 224, 3),
-        concurrency: int = 5,
+        **kwargs,
     ):
         """
         Initialize the classifier
         """
-        super().__init__(model_url, labels_url, input_shape, concurrency)
+        super().__init__(model_url, labels_url, input_shape, **kwargs)
 
     def load_labels(self, labels_url: str) -> List[str]:
         """
@@ -123,7 +123,7 @@ class BirdClassifier(Classifier):
         return failed_urls, successful_urls
 
     async def run(
-        self, image_urls: List[str], k=3
+        self, image_urls: List[str], k: int = 3
     ) -> Tuple[Dict[str, List], List[str]]:
         """
         Runs the classifier
@@ -131,8 +131,6 @@ class BirdClassifier(Classifier):
         :param k: Number of top scores to return
         :return: List of predictions
         """
-        self.semaphore = self.initialize_semaphore()
-
         image_list = await asyncio.gather(
             *[self.preprocess(url) for i, url in enumerate(image_urls)]
         )

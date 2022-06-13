@@ -18,8 +18,8 @@
     - CPU: `docker build -t veriff .`
     - GPU: `docker build -t veriff -f Dockerfile.gpu .`
 2. Run the docker image
-    - CPU: `docker run -d -p 8000:80 --name server  veriff`
-    - GPU: `docker run -d -p 8000:80 --name server --gpus all veriff`
+    - CPU: `docker run -d -p 8000:8000 --name server  veriff`
+    - GPU: `docker run -d -p 8000:8000 --name server --gpus all veriff`
 3. Server will be available on port `8000`.
 
 ## Inference API

@@ -3,3 +3,4 @@ LABELS_URL = "https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_birds_V1_labelma
 MAX_IMAGES = 10
 MAX_K = 10
 MIN_K = 0
+CONCURRENCY_LIMIT = 10
