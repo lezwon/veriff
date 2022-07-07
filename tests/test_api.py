@@ -118,17 +118,17 @@ def test_successful_inference(mock_async_client, image_bytes, image_urls, k):
         (
             ["https://example.com/8c3d7060.jpg"] * 11,
             3,
-            f"Too many images provided. Max {constants.max_images} images allowed",
+            f"Too many images provided. Max {constants.MAX_IMAGES} images allowed",
         ),
         (
             ["https://example.com/8c3d7060.jpg"],
             -1,
-            f"Min allowed value of K is {constants.min_k}",
+            f"Min allowed value of K is {constants.MIN_K}",
         ),
         (
             ["https://example.com/8c3d7060.jpg"] * 10,
             111,
-            f"Max allowed value of K is {constants.max_k}",
+            f"Max allowed value of K is {constants.MAX_K}",
         ),
     ],
 )
@@ -161,9 +161,9 @@ def test_invalid_images(mock_async_client, image_bytes, image_url, image):
     """
 
     def side_effect_func(url):
-        response = AsyncMock(name="Response")
-        response.aread.return_value = image() if url == image_url else image_bytes
-        return response
+        response_mock = AsyncMock(name="Response")
+        response_mock.aread.return_value = image() if url == image_url else image_bytes
+        return response_mock
 
     mock_async_client.side_effect = side_effect_func
 

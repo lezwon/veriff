@@ -18,8 +18,8 @@
     - CPU: `docker build -t veriff .`
     - GPU: `docker build -t veriff -f Dockerfile.gpu .`
 2. Run the docker image
-    - CPU: `docker run -d -p 8000:80 --name server  veriff`
-    - GPU: `docker run -d -p 8000:80 --name server --gpus all veriff`
+    - CPU: `docker run -d -p 8000:8000 --name server  veriff`
+    - GPU: `docker run -d -p 8000:8000 --name server --gpus all veriff`
 3. Server will be available on port `8000`.
 
 ## Inference API
@@ -73,6 +73,39 @@ Sample Response:
     "errors": []
 }
 ```
+
+## Benchmarks
+
+#### System hardware
+- CPU: Intel(R) Core(TM) i5-7360U CPU @ 2.30GHz
+- Cores: 2
+- GPU: None
+- Memory: 8GB
+
+#### Configuration
+| Setting              | Value |
+|----------------------|-------|
+| Total Calls          | 1000  |
+| Concurrent Calls     | 16    |
+| Timeout              | 10s   |
+| Images               | 5     |
+| Process workers      | 4     |
+| Concurrent downloads | 10    |
+
+
+#### Summary
+
+| Type                | Time
+|---------------------|--------------|
+| Mean query speed    | 3642 ms      |
+| Fastest query speed | 1990 ms      |
+| Slowest query speed | 9460 ms      |
+| Mean RPS            | 4.32 req/sec |
+| Total time          | 230856 ms    |
+
+Response Codes
+200: 998 responses (100.00%)
+
 
 ### Current Bottlenecks and Future Improvements:
 1. The current model inference is sequential. I would move the model inference to TFServing to utilize dynamic batching.

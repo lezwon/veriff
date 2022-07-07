@@ -1,19 +1,17 @@
 import time
 from typing import List, Optional, Dict, cast
 
-import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel, HttpUrl
 
 from app import constants
-from app.classifier import BirdClassifier
+from app.bird_classifier import BirdClassifier
 from app.logger import Logger
 
 server = FastAPI()
-classifier = BirdClassifier(constants.model_url, constants.labels_url)
-
-
 logger = Logger.getLogger(__name__, True)
+
+classifier = None
 
 
 class ImageInput(BaseModel):
@@ -21,6 +19,16 @@ class ImageInput(BaseModel):
 
     images: List[HttpUrl] = []
     k: Optional[int] = 3
+
+
+@server.on_event("startup")
+async def startup_event():
+    global classifier
+    classifier = BirdClassifier(
+        constants.MODEL_URL,
+        constants.LABELS_URL,
+        concurrency_limit=constants.CONCURRENCY_LIMIT,
+    )
 
 
 @server.post("/")
@@ -38,14 +46,14 @@ async def index(input_: ImageInput) -> Dict:
 
     if not input_.images:
         errors.append("No images provided")
-    elif len(input_.images) > constants.max_images:
+    elif len(input_.images) > constants.MAX_IMAGES:
         errors.append(
-            f"Too many images provided. Max {constants.max_images} images allowed"
+            f"Too many images provided. Max {constants.MAX_IMAGES} images allowed"
         )
-    elif input_.k > constants.max_k:
-        errors.append(f"Max allowed value of K is {constants.max_k}")
-    elif input_.k < constants.min_k:
-        errors.append(f"Min allowed value of K is {constants.min_k}")
+    elif input_.k > constants.MAX_K:
+        errors.append(f"Max allowed value of K is {constants.MAX_K}")
+    elif input_.k < constants.MIN_K:
+        errors.append(f"Min allowed value of K is {constants.MIN_K}")
     else:
         successful_results, failed_results = await classifier.run(
             cast(List[str], input_.images), input_.k
@@ -57,7 +65,3 @@ async def index(input_: ImageInput) -> Dict:
         "time_taken": time.time() - start_time,
         "errors": errors,
     }
-
-
-if __name__ == "__main__":
-    uvicorn.run(server, host="0.0.0.0", port=8000)
