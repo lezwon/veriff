@@ -1,67 +1,65 @@
+import pathlib
 import time
-from typing import List, Optional, Dict, cast
+from tempfile import TemporaryDirectory
 
-from fastapi import FastAPI
-from pydantic import BaseModel, HttpUrl
+from fastapi import FastAPI, UploadFile, Depends
 
-from app import constants
-from app.bird_classifier import BirdClassifier
+from app import utils
 from app.logger import Logger
+from app.model import YoloModel
 
 server = FastAPI()
 logger = Logger.getLogger(__name__, True)
 
-classifier = None
+
+async def get_classifier():
+    # TODO: do this at startup
+    return YoloModel()
 
 
-class ImageInput(BaseModel):
-    """Input class for image urls"""
-
-    images: List[HttpUrl] = []
-    k: Optional[int] = 3
-
-
-@server.on_event("startup")
-async def startup_event():
-    global classifier
-    classifier = BirdClassifier(
-        constants.MODEL_URL,
-        constants.LABELS_URL,
-        concurrency_limit=constants.CONCURRENCY_LIMIT,
-    )
-
-
-@server.post("/")
-async def index(input_: ImageInput) -> Dict:
-    """Takes image url as input and returns top 3 results as output"""
+@server.post("/infer/")
+async def create_upload_file(
+    file: UploadFile, model: YoloModel = Depends(get_classifier)
+):
     logger.info("Request received")
-    logger.info(f"Number of Images: {len(input_.images)}")
-    logger.info(f"K: {input_.k}")
-
+    url = ""
+    success = False
+    errors = []
     start_time = time.time()
 
-    successful_results: Dict[str, List] = {}
-    failed_results: List = []
-    errors: List = []
+    try:
+        # save file to /tmp
+        path = utils.save_upload_file_tmp(file)
+        # split video into frames
+        with TemporaryDirectory() as tmpdirname:
+            print("created temporary directory", tmpdirname)
+            # convert entire video into jpg frames
+            utils.split_video(path, tmpdirname)
+            # get list of frames
+            frames = pathlib.Path(tmpdirname).glob("*.jpg")
+            chunks = utils.chunks(frames, 10)
+            # draw predictions on each frame
+            for i, chunk in enumerate(chunks):
+                logger.info(f"Processing chunk..{i}")
+                predictions = model.infer(chunk)
+                # join frames back together with count
+                utils.draw_predictions(chunk, predictions)
+            # join frames into video
+            output_path = utils.join_frames_into_video(tmpdirname)
+            # return output
+            url = output_path.as_uri()
+            success = True
 
-    if not input_.images:
-        errors.append("No images provided")
-    elif len(input_.images) > constants.MAX_IMAGES:
-        errors.append(
-            f"Too many images provided. Max {constants.MAX_IMAGES} images allowed"
-        )
-    elif input_.k > constants.MAX_K:
-        errors.append(f"Max allowed value of K is {constants.MAX_K}")
-    elif input_.k < constants.MIN_K:
-        errors.append(f"Min allowed value of K is {constants.MIN_K}")
-    else:
-        successful_results, failed_results = await classifier.run(
-            cast(List[str], input_.images), input_.k
-        )
+        success = True
+    except Exception as e:
+        print(e)
+        errors.append(str(e))
+
+    time_taken = time.time() - start_time
 
     return {
-        "successful_results": successful_results,
-        "failed_results": failed_results,
-        "time_taken": time.time() - start_time,
-        "errors": errors,
+        "output_url": url,
+        "success": success,
+        "time_taken": time_taken,
+        "errors": [],
     }
